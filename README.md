@@ -30,4 +30,14 @@ npm run dev      # http://localhost:3000
 npm run build    # static export in out/
 ```
 
-Deployed via GitHub Actions to GitHub Pages on every push to `main`.
+## Deploy
+
+The site is served from the `gh-pages` branch (branch-based GitHub Pages):
+
+```bash
+npm run build
+/tmp/gh-deploy.sh "Deploy diorama designer site"   # pushes ./out to gh-pages via API
+```
+
+`.github/workflows/pages.yml` is kept for a future switch to Actions-based deploys —
+pushing it requires a token with the `workflow` scope. Source history lives on `main`.
