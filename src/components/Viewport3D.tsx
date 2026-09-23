@@ -1,7 +1,8 @@
 "use client";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import * as THREE from "three";
-import { OBJECT_LIBRARY, ProjectState, Road, Zone, sampleHeight, sampleRoadPoints, slopeAt } from "@/lib/model";
+import { ProjectState, Road, Zone, sampleHeight, sampleRoadPoints, slopeAt } from "@/lib/model";
+import { buildObjectModel } from "@/lib/models";
 
 export type ToolId = "navigate" | "raise" | "lower" | "smooth" | "road" | "zone" | "object" | "section" | "erase";
 
@@ -42,12 +43,6 @@ interface Props {
   onHoverSlope: (slopePct: number | null) => void;
   onMapClick: (x: number, z: number) => void;
   onCameraChange?: () => void;
-}
-
-function footprintOf(defId: string, scale: number): { l: number; w: number; h: number } | null {
-  const d = OBJECT_LIBRARY.find((o) => o.id === defId);
-  if (!d) return null;
-  return { h: d.realHeightCm / scale, l: d.realLengthCm / scale, w: d.realWidthCm / scale };
 }
 
 const Viewport3D = forwardRef<ViewportHandle, Props>(function Viewport3D(props, ref) {
@@ -246,6 +241,9 @@ const Viewport3D = forwardRef<ViewportHandle, Props>(function Viewport3D(props, 
         c.traverse((o) => {
           const m = o as THREE.Mesh;
           if (m.geometry) m.geometry.dispose();
+          const mt = m.material as THREE.Material | THREE.Material[] | undefined;
+          if (Array.isArray(mt)) mt.forEach((x) => x.dispose());
+          else if (mt) mt.dispose();
         });
       }
     }
@@ -358,17 +356,11 @@ const Viewport3D = forwardRef<ViewportHandle, Props>(function Viewport3D(props, 
 
       if (L.objects) {
         for (const o of s.objects) {
-          const f = footprintOf(o.defId, s.scale);
-          if (!f) continue;
-          const def = OBJECT_LIBRARY.find((d) => d.id === o.defId);
-          const y = sampleHeight(s, o.x, o.z);
-          const box = new THREE.Mesh(new THREE.BoxGeometry(f.l, f.h, f.w), new THREE.MeshStandardMaterial({ color: new THREE.Color(def?.color ?? "#ccc"), roughness: 0.8 }));
-          box.position.set(o.x, y + f.h / 2 + 0.1, o.z);
-          box.rotation.y = (o.rotDeg * Math.PI) / 180;
-          overlayGroup.add(box);
-        }
-        if (P().tool === "object" && P().selectedObjectDefId) {
-          // ghost follows last hover — drawn via brushRing instead; skip
+          const model = buildObjectModel(o.defId, s.scale);
+          if (!model) continue;
+          model.position.set(o.x, sampleHeight(s, o.x, o.z) + 0.05, o.z);
+          model.rotation.y = (o.rotDeg * Math.PI) / 180;
+          overlayGroup.add(model);
         }
       }
 
@@ -477,7 +469,7 @@ const Viewport3D = forwardRef<ViewportHandle, Props>(function Viewport3D(props, 
       moved += Math.abs(dx) + Math.abs(dy);
 
       if (orbiting) {
-        rig.yaw -= dx * 0.006;
+        rig.yaw += dx * 0.006;
         rig.pitch = Math.min(Math.PI / 2 - 0.02, Math.max(0.08, rig.pitch + dy * 0.005));
         applyCamera();
         return;
