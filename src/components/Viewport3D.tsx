@@ -22,6 +22,7 @@ export interface DraftState {
 
 export interface ViewportHandle {
   refreshAll: () => void;
+  refreshOverlays: () => void;
   refreshTerrain: () => void;
   screenshot: () => string;
   setCamera: (preset: "top" | "iso" | "free") => void;
@@ -51,12 +52,13 @@ function footprintOf(defId: string, scale: number): { l: number; w: number; h: n
 
 const Viewport3D = forwardRef<ViewportHandle, Props>(function Viewport3D(props, ref) {
   const mountRef = useRef<HTMLDivElement>(null);
-  const apiRef = useRef<{ refreshAll: () => void; refreshTerrain: () => void; screenshot: () => string; setCamera: (p: "top" | "iso" | "free") => void } | null>(null);
+  const apiRef = useRef<{ refreshAll: () => void; refreshOverlays: () => void; refreshTerrain: () => void; screenshot: () => string; setCamera: (p: "top" | "iso" | "free") => void } | null>(null);
   const propsRef = useRef(props);
   propsRef.current = props;
 
   useImperativeHandle(ref, () => ({
     refreshAll: () => apiRef.current?.refreshAll(),
+    refreshOverlays: () => apiRef.current?.refreshOverlays(),
     refreshTerrain: () => apiRef.current?.refreshTerrain(),
     screenshot: () => apiRef.current?.screenshot() ?? "",
     setCamera: (p) => apiRef.current?.setCamera(p),
@@ -404,6 +406,7 @@ const Viewport3D = forwardRef<ViewportHandle, Props>(function Viewport3D(props, 
 
     apiRef.current = {
       refreshAll,
+      refreshOverlays,
       refreshTerrain: () => {
         refreshTerrainColors();
         refreshOverlays();
@@ -480,13 +483,14 @@ const Viewport3D = forwardRef<ViewportHandle, Props>(function Viewport3D(props, 
         return;
       }
       if (panning) {
+        // Grab-the-world pan: the terrain follows the cursor, camera-relative.
         const s = P().getState();
         const span = Math.max(s.base.lengthCm, s.base.widthCm);
         const k = (rig.distance / 700) * (span / 90);
-        const cosY = Math.cos(rig.yaw);
         const sinY = Math.sin(rig.yaw);
-        rig.target.x = Math.min(s.base.lengthCm, Math.max(0, rig.target.x - (dx * cosY - dy * sinY * 0.4) * k));
-        rig.target.z = Math.min(s.base.widthCm, Math.max(0, rig.target.z - (dx * sinY + dy * cosY * 0.4) * k * -1 - dy * k * 0.6));
+        const cosY = Math.cos(rig.yaw);
+        rig.target.x = Math.min(s.base.lengthCm, Math.max(0, rig.target.x + (-sinY * dx - cosY * dy) * k));
+        rig.target.z = Math.min(s.base.widthCm, Math.max(0, rig.target.z + (cosY * dx - sinY * dy) * k));
         applyCamera();
         return;
       }

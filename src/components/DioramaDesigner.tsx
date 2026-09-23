@@ -94,6 +94,13 @@ export default function DioramaDesigner() {
   const refresh = () => viewportRef.current?.refreshAll();
   const refreshTerrain = () => viewportRef.current?.refreshTerrain();
 
+  // Keep the 3D overlays in lockstep with React state after every render commit:
+  // live previews while clicking road/zone/section points, and guaranteed visibility
+  // of finished roads/zones even if an imperative refresh ran against stale props.
+  useEffect(() => {
+    viewportRef.current?.refreshOverlays();
+  }, [draft, layers, selectedRoadId, version]);
+
   function pushUndo() {
     undoRef.current.push(cloneState(stateRef.current));
     if (undoRef.current.length > 60) undoRef.current.shift();
@@ -577,9 +584,10 @@ export default function DioramaDesigner() {
                 </div>
                 <div className="row">
                   <label>Strength</label>
-                  <input max={1} min={0.05} onChange={(e) => setBrushStrength(Number(e.target.value))} step={0.05} type="range" value={brushStrength} />
+                  <input max={2.5} min={0.05} onChange={(e) => setBrushStrength(Number(e.target.value))} step={0.05} type="range" value={brushStrength} />
                   <span className="val">{brushStrength.toFixed(2)}</span>
                 </div>
+                <div className="hint">Tip: crank strength past 1.0 — or hit the ⛰ Mountain preset — to raise real peaks fast.</div>
                 <div className="kv">
                   <span>
                     Slope here:{" "}

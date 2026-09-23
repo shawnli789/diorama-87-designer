@@ -220,13 +220,14 @@ export function applyBrush(s: ProjectState, mode: BrushMode, x: number, z: numbe
   return peak;
 }
 
-export type PresetId = "flat" | "gentle" | "terrace" | "valley";
+export type PresetId = "flat" | "gentle" | "terrace" | "valley" | "mountain";
 
 export const PRESETS: { id: PresetId; label: string; hint: string }[] = [
   { hint: "Start over with a level plate.", id: "flat", label: "Flat plate" },
   { hint: "A soft diagonal hillside, easy for beginners.", id: "gentle", label: "Gentle hillside" },
   { hint: "Stepped levels for switchback roads.", id: "terrace", label: "Steep terrace" },
   { hint: "A dip through the middle for a creek or haul road.", id: "valley", label: "Valley cut" },
+  { hint: "A tall peak (~14cm) — the easy way to start real mountains.", id: "mountain", label: "⛰ Mountain" },
 ];
 
 export function applyPreset(s: ProjectState, id: PresetId): void {
@@ -244,6 +245,11 @@ export function applyPreset(s: ProjectState, id: PresetId): void {
         h = t * 2.2 + 0.4 * Math.sin(v * Math.PI * 4);
       } else if (id === "valley") {
         h = 5 * Math.pow(Math.abs(u - 0.5) * 2, 1.6);
+      } else if (id === "mountain") {
+        const ex = (u - 0.55) / 0.3;
+        const ez = (v - 0.45) / 0.26;
+        h = 14 * Math.exp(-(ex * ex + ez * ez)) + 1.5 * Math.sin(u * 9 + 1) * Math.sin(v * 7);
+        h = Math.max(0, h);
       }
       s.terrain[idx(nx, ix, iz)] = Math.round(h * 20) / 20;
     }
